@@ -1,0 +1,1218 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jogo da Bola Luminosa</title>
+    <style>
+        /* CSS reset & base */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background-color: #0d0d12;
+            color: white;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden; /* prevent scroll during explosion */
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        /* Top header with stats */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 2rem;
+            z-index: 10;
+        }
+        .stats {
+            font-size: 1.5rem;
+            text-shadow: 0 0 10px #00ffcc;
+            color: #00ffcc;
+        }
+        .admin-btn {
+            background: transparent;
+            border: 1px solid #ffffff55;
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+        .admin-btn:hover { background: #ffffff22; }
+
+        /* Main Game Area */
+        main {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+        }
+
+        /* Luminous Ball */
+        .ball-container {
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 5;
+        }
+        
+        .ball-trail-particle {
+            position: absolute;
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 1;
+            opacity: 0.5;
+            animation: fadeTrail 0.4s ease-out forwards;
+            transform: translate(-50%, -50%);
+        }
+        @keyframes screenShake {
+            0%   { transform: translate(0, 0); }
+            20%  { transform: translate(-6px, 4px); }
+            40%  { transform: translate(6px, -4px); }
+            60%  { transform: translate(-4px, 6px); }
+            80%  { transform: translate(4px, -2px); }
+            100% { transform: translate(0, 0); }
+        }
+        @keyframes fadeTrail {
+            0% { opacity: 0.5; transform: translate(-50%, -50%) scale(0.9); }
+            100% { opacity: 0; transform: translate(-50%, -50%) scale(0.2); }
+        }
+
+        .luminous-ball {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            background: radial-gradient(circle at 30% 30%, #ffffff, #00ffcc, #0088ff);
+            box-shadow: 0 0 20px #00ffcc, 0 0 50px #00ffcc, inset 0 0 20px #ffffff;
+            cursor: pointer;
+            transition: width 0.1s, height 0.1s, box-shadow 0.3s;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        /* Pulse Animation (idle) */
+        @keyframes pulse {
+            0% { transform: scale(1); box-shadow: 0 0 20px #00ffcc, 0 0 50px #00ffcc; }
+            50% { transform: scale(1.05); box-shadow: 0 0 30px #00ffcc, 0 0 70px #00ffcc; }
+            100% { transform: scale(1); box-shadow: 0 0 20px #00ffcc, 0 0 50px #00ffcc; }
+        }
+        .luminous-ball.idle {
+            animation: pulse 2s infinite;
+        }
+
+        /* Explosion effect */
+        .explosion-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: #ffffff;
+            opacity: 0;
+            pointer-events: none;
+            z-index: 100;
+        }
+        @keyframes atomicBomb {
+            0% { opacity: 0; transform: scale(1); background: #ffffff; }
+            10% { opacity: 1; transform: scale(1); background: #ffffff; }
+            50% { opacity: 0.8; background: #ffaa00; }
+            100% { opacity: 0; transform: scale(1.5); background: transparent; }
+        }
+        .explode-anim {
+            animation: atomicBomb 1.5s ease-out forwards;
+        }
+
+        /* Banners Area */
+        .banners-wrapper {
+            height: 160px;
+            background: #1a1a24;
+            display: flex;
+            align-items: center;
+            z-index: 10;
+            overflow: hidden;
+            width: 100%;
+        }
+        .banners-container {
+            display: flex;
+            align-items: center;
+            width: max-content;
+            animation: scrollMarquee 30s linear infinite;
+        }
+        .banners-container:hover {
+            animation-play-state: paused;
+        }
+        @keyframes scrollMarquee {
+            0% { transform: translateX(0); }
+            100% { transform: translateX(-50%); }
+        }
+        .banner {
+            background: #2a2a35;
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: #ccc;
+            font-size: 0.9rem;
+            border: 1px solid #333;
+            transition: border-color 0.3s, transform 0.2s, box-shadow 0.3s;
+            text-align: center;
+            min-width: 280px;
+            width: 280px;
+            height: 140px;
+            padding: 10px;
+            margin-right: 15px;
+            flex-shrink: 0;
+            cursor: pointer;
+        }
+        .banner:hover {
+            border-color: #00ffcc;
+            transform: translateY(-4px);
+            color: #fff;
+            box-shadow: 0 4px 15px rgba(0, 255, 204, 0.2);
+        }
+        .banner-img-wrapper {
+            width: 100%;
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 8px;
+            overflow: hidden;
+        }
+        .banner img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            border-radius: 4px;
+        }
+        .banner-name {
+            font-weight: bold;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            width: 100%;
+        }
+
+        /* Modals (Admin, Victory) */
+        .modal {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.8);
+            backdrop-filter: blur(5px);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 200;
+        }
+        .modal.active { display: flex; }
+        .modal-content {
+            background: #1e1e2d;
+            padding: 2rem;
+            border-radius: 10px;
+            border: 1px solid #00ffcc;
+            box-shadow: 0 0 30px rgba(0,255,204,0.2);
+            text-align: center;
+            max-width: 400px;
+            width: 90%;
+            color: white;
+        }
+        .modal h2 { margin-bottom: 1.5rem; color: #00ffcc; }
+        .modal input {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 1rem;
+            border: 1px solid #444;
+            border-radius: 5px;
+            background: #111;
+            color: white;
+        }
+        .modal button {
+            width: 100%;
+            padding: 10px;
+            background: #00ffcc;
+            color: #000;
+            border: none;
+            border-radius: 5px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+        .modal button:hover { background: #00cca3; }
+        .close-modal { margin-top: 10px; background: transparent !important; color: #888 !important; border: 1px solid #444 !important; }
+        .close-modal:hover { background: #333 !important; color: white !important; }
+
+        /* Victory specifics */
+        .victory-icon { font-size: 4rem; margin-bottom: 1rem; text-shadow: 0 0 20px gold; }
+        .sponsor-prize { color: gold; font-size: 1.2rem; margin: 1rem 0; font-weight: bold; }
+
+        /* Admin Dashboard */
+        .admin-dashboard {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: #0d0d12;
+            z-index: 300;
+            display: none;
+            flex-direction: column;
+            padding: 2rem;
+            overflow-y: auto;
+        }
+        .admin-dashboard.active { display: flex; }
+        .admin-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; border-bottom: 1px solid #333; padding-bottom: 1rem; }
+        .btn-exit { padding: 8px 16px; background: #ff4444; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
+        .btn-exit:hover { background: #cc0000; }
+        .admin-panel-grid { display: grid; gap: 2rem; grid-template-columns: 1fr; }
+        @media (min-width: 768px) { .admin-panel-grid { grid-template-columns: 1fr 1fr; } }
+        .admin-card { background: #1a1a24; padding: 1.5rem; border-radius: 8px; border: 1px solid #333; }
+        .banner-settings { display: flex; flex-direction: column; gap: 10px; }
+        .banner-input-group { display: flex; gap: 10px; align-items: center; }
+        .banner-input-group label { width: 30px; color: #888; }
+        .banner-input-group input { flex: 1; padding: 8px; background: #0d0d12; border: 1px solid #333; color: white; border-radius: 4px; }
+        .save-banners-btn { margin-top: 15px; padding: 10px; background: #00ffcc; border: none; font-weight: bold; cursor: pointer; border-radius: 4px; color: #000; }
+        .save-banners-btn:hover { background: #00cca3; }
+        .reset-stats-btn { margin-top: 15px; padding: 10px; background: #ffaa00; border: none; font-weight: bold; cursor: pointer; border-radius: 4px; color: black; width: 100%;}
+        .reset-stats-btn:hover { background: #cc8800; }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div style="display: flex; gap: 20px; align-items: center;">
+            <div id="user-info" style="color: #00ff00; font-weight: bold; display: none; text-shadow: 0 0 10px #00ff00; font-size: 1.2rem;">🟢 Logado: <span id="current-username"></span></div>
+            <div class="stats" style="display: flex; gap: 10px; align-items: center;">
+                Estouros: <span id="explosion-icons" style="letter-spacing: 5px; font-size: 1.8rem; text-shadow: 0 0 10px #00ffcc;">🔵🔵🔵</span>
+            </div>
+        </div>
+        <div style="display: flex; gap: 20px; align-items: center;">
+            <div id="online-players" style="color: #00ffcc; font-weight: bold; text-shadow: 0 0 10px #00ffcc; font-size: 1.2rem;">
+                👥 <span id="online-count">1</span> Online
+            </div>
+            <button class="admin-btn" id="open-login-btn">Admin</button>
+        </div>
+    </header>
+
+    <main>
+        <div class="explosion-overlay" id="explosion-effect"></div>
+        <div class="ball-container">
+            <div class="luminous-ball idle" id="ball"></div>
+        </div>
+    </main>
+
+    <div class="banners-wrapper">
+        <div class="banners-container" id="banners-grid">
+            <!-- Banners will be generated by JS -->
+        </div>
+    </div>
+
+    <!-- Player Authenticator / Payment Modal -->
+    <div class="modal active" id="player-modal" style="z-index: 1000;">
+        <div class="modal-content" id="login-step">
+            <h2>Bem-vindo ao Jogo</h2>
+            <p style="margin-bottom: 15px;">Digite seu nome e telefone para acessar</p>
+            <input type="text" id="player-user" placeholder="Seu nome (usuário)" style="text-transform: uppercase;">
+            <input type="text" id="player-phone" placeholder="Celular / WhatsApp" style="margin-bottom: 15px;">
+            <button id="player-login-btn">Entrar</button>
+        </div>
+        <div class="modal-content" id="payment-step" style="display: none;">
+            <h2>Taxa de Manutenção</h2>
+            <p style="margin-bottom: 15px;">Para acessar o app e jogar, pedimos uma contribuição de manutenção. Seu acesso ficará ativo por <strong>1 mês</strong>.</p>
+            <p style="margin-bottom: 15px;">Valor a pagar: <br><strong id="payment-price" style="font-size: 2rem; color: #00ffcc;"></strong></p>
+            <button id="player-pay-btn" style="background: #00ffcc; color: #000;">Pagar Acesso VIP</button>
+            <div id="trial-container" style="margin-top: 15px; border-top: 1px solid #333; padding-top: 15px;">
+                <p style="font-size: 0.9rem; margin-bottom: 10px; color: #ccc;">Ainda não conhece o jogo?</p>
+                <button id="player-trial-btn" style="background: #ffaa00; color: #000; border: none; padding: 10px; border-radius: 5px; width: 100%; font-weight: bold; cursor: pointer;">Testar Grátis por 1 Dia</button>
+            </div>
+            <button class="close-modal" id="cancel-pay-btn" style="margin-top: 10px;">Voltar</button>
+        </div>
+    </div>
+
+    <!-- Login Modal -->
+    <div class="modal" id="login-modal">
+        <div class="modal-content">
+            <h2>Área do Patrocinador (Admin)</h2>
+            <input type="text" id="admin-user" placeholder="Usuário (Ex: admin)">
+            <input type="password" id="admin-pass" placeholder="Senha (Ex: admin)">
+            <button id="login-btn">Entrar</button>
+            <button class="close-modal" id="close-login-btn">Cancelar</button>
+            <p id="login-error" style="color: #ff4444; margin-top: 10px; display: none;">Credenciais inválidas.</p>
+        </div>
+    </div>
+
+    <!-- Victory Modal -->
+    <div class="modal" id="victory-modal">
+        <div class="modal-content" style="max-width: 450px;">
+            <div class="victory-icon">🏆</div>
+            <h2>Parabéns!</h2>
+            <p>Você estourou a bola 3 vezes e venceu!</p>
+            <div class="sponsor-prize">Você ganhou o PRÊMIO DO PATROCINADOR!</div>
+            
+            <div id="trial-warning" style="display: none; background: #ff4444; color: white; padding: 15px; margin: 15px 0; border-radius: 8px; font-weight: bold; text-align: center; border: 2px solid #cc0000; box-shadow: 0 0 15px rgba(255,0,0,0.5); font-size: 1.1rem;">
+                ⚠️ PRÊMIO INVÁLIDO ⚠️<br><br>
+                <span style="font-size: 0.9rem; font-weight: normal;">Você está jogando no período de teste grátis. Para validar e resgatar prêmios reais, adquira o Acesso VIP!</span>
+            </div>
+
+            <div id="prize-card" style="background: linear-gradient(135deg, #111, #222); border: 2px dashed #00ffcc; padding: 20px; border-radius: 10px; margin: 0 0 20px 0; text-align: left; box-shadow: 0 0 15px rgba(0,255,204,0.3);">
+                <p style="color: #888; text-transform: uppercase; font-size: 0.8rem; letter-spacing: 1px; margin-bottom: 10px; text-align: center;">Cartão de Resgate VIP</p>
+                <div style="font-size: 1.1rem; margin-bottom: 10px;">
+                    <span style="color: #aaa;">Nome:</span> <strong id="card-name" style="color: #fff;"></strong>
+                </div>
+                <div style="font-size: 1.1rem; margin-bottom: 15px;">
+                    <span style="color: #aaa;">Telefone:</span> <strong id="card-phone" style="color: #fff;"></strong>
+                </div>
+                <div style="background: #000; padding: 15px; text-align: center; border-radius: 8px;">
+                    <p style="color: #00ffcc; font-size: 0.8rem; margin-bottom: 5px;" id="card-code-label">CÓDIGO DE RESGATE</p>
+                    <p id="card-code" style="font-size: 2rem; font-family: monospace; letter-spacing: 4px; color: gold; margin: 0; text-shadow: 0 0 10px gold;"></p>
+                </div>
+            </div>
+            
+            <button id="whatsapp-share-btn" style="background: #25D366; color: white; width: 100%; border: none; padding: 12px; border-radius: 5px; font-weight: bold; font-size: 1.1rem; cursor: pointer; margin-bottom: 15px; transition: 0.3s;">📲 Enviar para o WhatsApp</button>
+            <p id="whatsapp-helper-text" style="font-size: 0.9rem; color: #ccc;">Apresente este cartão ou envie pelo WhatsApp no estabelecimento para resgatar sua recompensa.</p>
+            <button id="restart-game-btn" style="margin-top: 5px;">Jogar Novamente</button>
+        </div>
+    </div>
+
+    <!-- Admin Dashboard -->
+    <div class="admin-dashboard" id="admin-dashboard">
+        <div class="admin-header">
+            <h2>Painel de Controle</h2>
+            <button class="btn-exit" id="logout-btn">Sair do Painel</button>
+        </div>
+        <div class="admin-panel-grid">
+            <div class="admin-card">
+                <h3>Configuração de Banners</h3>
+                <p style="color: #888; font-size: 0.8rem; margin-bottom: 15px;">Insira o Nome e a URL da Imagem para cada patrocinador.</p>
+                <div class="banner-settings" id="banner-settings-container">
+                    <!-- generated by JS -->
+                </div>
+                <button class="save-banners-btn" id="save-banners-btn">Salvar Banners</button>
+            </div>
+            <div class="admin-card">
+                <h3>Estatísticas do Jogo</h3>
+                <p style="margin-bottom: 20px;">Explosões totais computadas (Global): <br/><strong style="font-size: 2rem; color: #00ffcc;" id="admin-stat-explosions">0</strong></p>
+                <div style="padding: 15px; background: rgba(255,170,0,0.1); border: 1px solid #ffaa00; border-radius: 5px;">
+                    <h4 style="color: #ffaa00; margin-bottom: 10px;">Ações Críticas</h4>
+                    <button class="reset-stats-btn" id="reset-stats-btn">Resetar Placar (TODOS OS JOGADORES)</button>
+                </div>
+            </div>
+            
+            <div class="admin-card" style="grid-column: 1 / -1;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <h3>Histórico de Ganhadores</h3>
+                    <button id="clear-expired-btn" style="padding: 8px 12px; background: #ff4444; border: none; font-weight: bold; cursor: pointer; border-radius: 4px; color: white; transition: 0.3s;">Limpar Vencidos (+72h)</button>
+                </div>
+                <div id="winners-history-container" style="background: #0d0d12; padding: 15px; border-radius: 5px; border: 1px solid #333; max-height: 250px; overflow-y: auto;">
+                    <!-- Winners list inserted by JS -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- AUDIO / SOUND SYNTHESIS ---
+        let audioCtx;
+        
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }
+
+        function playPopSound() {
+            initAudio();
+            const oscillator = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            
+            oscillator.type = 'sine';
+            oscillator.frequency.setValueAtTime(300, audioCtx.currentTime);
+            oscillator.frequency.exponentialRampToValueAtTime(800, audioCtx.currentTime + 0.1);
+            
+            gainNode.gain.setValueAtTime(0.5, audioCtx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            
+            oscillator.start();
+            oscillator.stop(audioCtx.currentTime + 0.1);
+        }
+
+        function playExplosionSound() {
+            initAudio();
+            
+            // Generate Noise for Explosion
+            const bufferSize = audioCtx.sampleRate * 2.0; // 2 seconds
+            const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+            const data = buffer.getChannelData(0);
+            for (let i = 0; i < bufferSize; i++) {
+                data[i] = Math.random() * 2 - 1;
+            }
+            
+            const noise = audioCtx.createBufferSource();
+            noise.buffer = buffer;
+            
+            // Lowpass filter to muffle it like a deep boom
+            const filter = audioCtx.createBiquadFilter();
+            filter.type = 'lowpass';
+            filter.frequency.setValueAtTime(800, audioCtx.currentTime);
+            filter.frequency.exponentialRampToValueAtTime(50, audioCtx.currentTime + 1.5);
+            
+            const gainNode = audioCtx.createGain();
+            gainNode.gain.setValueAtTime(1, audioCtx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 1.5);
+            
+            noise.connect(filter);
+            filter.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            
+            noise.start();
+        }
+
+        // --- GAME LOGIC ---
+        const ball = document.getElementById('ball');
+        const explosionEffect = document.getElementById('explosion-effect');
+        const victoryModal = document.getElementById('victory-modal');
+        
+        const MIN_SIZE = 100;
+        const MAX_SIZE = 350; // Pixels when it explodes
+        const CLICK_GROWTH = 15;
+        const AUTO_DECREASE = 4; // Decreases every 150ms
+        
+        let ballSize = MIN_SIZE;
+        let explosions = 0;
+        const TARGET_EXPLOSIONS = 3;
+
+        function updateExplosionIcons() {
+            const container = document.getElementById('explosion-icons');
+            if (container) {
+                let popped = Math.min(explosions, TARGET_EXPLOSIONS);
+                let left = Math.max(0, TARGET_EXPLOSIONS - popped);
+                container.textContent = '💥'.repeat(popped) + '🔵'.repeat(left);
+            }
+        }
+        let autoGrowInterval;
+        let gameActive = false;
+
+        // Global stats simulation
+        function addGlobalExplosion() {
+            let total = parseInt(localStorage.getItem('luminous_global_explosions') || '0');
+            localStorage.setItem('luminous_global_explosions', total + 1);
+        }
+
+        function updateBallVisuals() {
+            ball.style.width = ballSize + 'px';
+            ball.style.height = ballSize + 'px';
+            
+            // Change color and glow intensity based on size ratio
+            const progress = Math.max(0, Math.min(1, (ballSize - MIN_SIZE) / (MAX_SIZE - MIN_SIZE)));
+            
+            const shadowBlur = 20 + (progress * 150);
+            const shadowSpread = progress * 60;
+            
+            // Color transitions
+            let coreColor = '#ffffff';
+            let glowColor = '#00ffcc';
+            
+            if (progress > 0.8) {
+                coreColor = '#ffffff';
+                glowColor = '#ff2200'; // Hot red
+            } else if (progress > 0.4) {
+                coreColor = '#ffffaa';
+                glowColor = '#ffaa00'; // Orange
+            }
+            
+            ball.style.boxShadow = `0 0 ${shadowBlur}px ${shadowSpread}px ${glowColor}, inset 0 0 30px ${coreColor}`;
+            ball.style.background = `radial-gradient(circle at 30% 30%, ${coreColor}, ${glowColor}, #000000)`;
+            
+            // Remove pulse animation when starting to grow
+            if (progress > 0.1) {
+                ball.classList.remove('idle');
+            } else {
+                ball.classList.add('idle');
+            }
+        }
+
+        function triggerExplosion() {
+            playExplosionSound();
+            explosions++;
+            addGlobalExplosion();
+            updateExplosionIcons();
+            
+            // Re-trigger CSS animation
+            explosionEffect.classList.remove('explode-anim');
+            void explosionEffect.offsetWidth; // force reflow
+            explosionEffect.classList.add('explode-anim');
+            
+            // Reset ball
+            ballSize = MIN_SIZE;
+            updateBallVisuals();
+            randomizeBallPosition();
+            
+            // Check win condition
+            if (explosions >= TARGET_EXPLOSIONS) {
+                gameActive = false;
+                clearInterval(autoGrowInterval);
+
+                // Check if user is on trial
+                const isTrialUser = localStorage.getItem('is_trial_' + currentPlayer) === 'true';
+
+                // Generate Card
+                const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+                let rawCode = '';
+                for (let i = 0; i < 12; i++) rawCode += chars.charAt(Math.floor(Math.random() * chars.length));
+                let code = rawCode.match(/.{1,4}/g).join('-');
+                
+                if (isTrialUser) {
+                    code = '0000-0000-0000';
+                    document.getElementById('trial-warning').style.display = 'block';
+                    document.getElementById('whatsapp-share-btn').style.display = 'none';
+                    document.getElementById('whatsapp-helper-text').style.display = 'none';
+                    document.getElementById('card-code-label').textContent = 'NÃO VALE PRÊMIO';
+                    document.getElementById('card-code').style.color = '#ff4444';
+                    document.getElementById('card-code').style.textShadow = '0 0 10px #ff4444';
+                } else {
+                    document.getElementById('trial-warning').style.display = 'none';
+                    document.getElementById('whatsapp-share-btn').style.display = 'block';
+                    document.getElementById('whatsapp-helper-text').style.display = 'block';
+                    document.getElementById('card-code-label').textContent = 'CÓDIGO DE RESGATE';
+                    document.getElementById('card-code').style.color = 'gold';
+                    document.getElementById('card-code').style.textShadow = '0 0 10px gold';
+                    
+                    // Salvar Ganhador no Histórico
+                    let winnersList = [];
+                    try { winnersList = JSON.parse(localStorage.getItem('luminous_winners_v2')) || []; } catch(e) {}
+                    winnersList.push({ name: currentPlayer, phone: currentPlayerPhone, code: code, timestamp: Date.now() });
+                    localStorage.setItem('luminous_winners_v2', JSON.stringify(winnersList));
+                }
+
+                document.getElementById('card-name').textContent = currentPlayer;
+                document.getElementById('card-phone').textContent = currentPlayerPhone;
+                document.getElementById('card-code').textContent = code;
+
+                setTimeout(() => {
+                    victoryModal.classList.add('active');
+                }, 800); // Wait for the visual explosion start
+            }
+        }
+
+        ball.addEventListener('click', () => {
+            if (!gameActive) return;
+            playPopSound();
+            
+            ballSize += CLICK_GROWTH;
+            
+            if (ballSize >= MAX_SIZE) {
+                triggerExplosion();
+            } else {
+                updateBallVisuals();
+            }
+        });
+
+        let ballX = window.innerWidth / 2;
+        let ballY = window.innerHeight / 2;
+        let vx = 2.2;
+        let vy = 2.2;
+        let frameCount = 0;
+
+        // Unpredictable movement: random direction nudges every interval
+        const BASE_SPEED = () => window.innerWidth <= 768 ? 4.5 : 6.0;
+        const MAX_SPEED = () => window.innerWidth <= 768 ? 7.0 : 9.0;
+        const TURBO_SPEED = 38;
+        let isTurbo = false;
+
+        function clampSpeed() {
+            if (isTurbo) return;
+            const max = MAX_SPEED();
+            const speed = Math.sqrt(vx * vx + vy * vy);
+            if (speed > max) {
+                vx = (vx / speed) * max;
+                vy = (vy / speed) * max;
+            }
+            const min = BASE_SPEED() * 0.6;
+            if (speed < min && speed > 0) {
+                vx = (vx / speed) * min;
+                vy = (vy / speed) * min;
+            }
+        }
+
+        function triggerTurbo() {
+            if (isTurbo || !gameActive) return;
+            isTurbo = true;
+            const speed = Math.sqrt(vx * vx + vy * vy) || 1;
+            vx = (vx / speed) * TURBO_SPEED;
+            vy = (vy / speed) * TURBO_SPEED;
+            ball.style.transition = 'box-shadow 0.05s';
+            ball.style.boxShadow = '0 0 80px 40px #ffffff, 0 0 200px 80px #00ffff';
+            ball.style.filter = 'brightness(3)';
+            // Cycle through durations: 0.6s → 1.1s → 1.8s → 2.7s → 0.6s → ...
+            const duration = TURBO_DURATIONS[turboDurationIndex % TURBO_DURATIONS.length];
+            turboDurationIndex++;
+            setTimeout(() => {
+                isTurbo = false;
+                const s = Math.sqrt(vx * vx + vy * vy) || 1;
+                const base = BASE_SPEED();
+                vx = (vx / s) * base;
+                vy = (vy / s) * base;
+                ball.style.filter = '';
+                ball.style.transition = 'box-shadow 0.3s';
+            }, duration);
+        }
+
+        const TURBO_INTERVALS = [2000, 4000, 9000, 11000, 16000];
+        const TURBO_DURATIONS = [600, 1100, 1800, 2700];
+        let turboIntervalIndex = 0;
+        let turboDurationIndex = 0;
+
+        function scheduleTurbo() {
+            // Cycle through 2s → 4s → 9s → 11s → 16s → 2s → ...
+            const delay = TURBO_INTERVALS[turboIntervalIndex % TURBO_INTERVALS.length];
+            turboIntervalIndex++;
+            setTimeout(() => {
+                triggerTurbo();
+                scheduleTurbo();
+            }, delay);
+        }
+        scheduleTurbo();
+
+        // Every 1.2–2.5s, apply a random angular nudge so direction is unpredictable
+        function scheduleRandomNudge() {
+            const delay = 1200 + Math.random() * 1300;
+            setTimeout(() => {
+                if (gameActive && !isTurbo) {
+                    const angle = (Math.random() - 0.5) * Math.PI * 0.67;
+                    const cos = Math.cos(angle);
+                    const sin = Math.sin(angle);
+                    const newVx = vx * cos - vy * sin;
+                    const newVy = vx * sin + vy * cos;
+                    vx = newVx;
+                    vy = newVy;
+                    clampSpeed();
+                }
+                scheduleRandomNudge();
+            }, delay);
+        }
+        scheduleRandomNudge();
+
+        function createTrailParticle(x, y, size) {
+            const particle = document.createElement('div');
+            particle.className = 'ball-trail-particle';
+            const trailSize = size * 0.9;
+            particle.style.width = trailSize + 'px';
+            particle.style.height = trailSize + 'px';
+            particle.style.left = x + 'px';
+            particle.style.top = y + 'px';
+            
+            const progress = Math.max(0, Math.min(1, (size - MIN_SIZE) / (MAX_SIZE - MIN_SIZE)));
+            let coreColor = '#ffffff';
+            let glowColor = '#00ffcc';
+            if (progress > 0.8) { glowColor = '#ff2200'; coreColor = '#ffffff'; }
+            else if (progress > 0.4) { glowColor = '#ffaa00'; coreColor = '#ffffaa'; }
+            
+            particle.style.background = `radial-gradient(circle at 30% 30%, ${coreColor}, ${glowColor}, #000000)`;
+            particle.style.boxShadow = `0 0 ${20 + progress*50}px ${glowColor}`;
+
+            const mainElement = document.querySelector('main');
+            if(mainElement) mainElement.appendChild(particle);
+            
+            setTimeout(() => {
+                if(particle.parentNode) particle.remove();
+            }, 400);
+        }
+
+        function updateBallMovement() {
+            if (!gameActive) {
+                requestAnimationFrame(updateBallMovement);
+                return;
+            }
+
+            const mainElement = document.querySelector('main');
+            if (mainElement) {
+                const mainRect = mainElement.getBoundingClientRect();
+                const padding = ballSize / 2;
+
+                ballX += vx;
+                ballY += vy;
+
+                if (ballX < padding) {
+                    ballX = padding;
+                    vx = Math.abs(vx);
+                    // Random vertical nudge on bounce so pattern isn't predictable
+                    vy += (Math.random() - 0.5) * 1.2;
+                    clampSpeed();
+                } else if (ballX > mainRect.width - padding) {
+                    ballX = mainRect.width - padding;
+                    vx = -Math.abs(vx);
+                    vy += (Math.random() - 0.5) * 1.2;
+                    clampSpeed();
+                }
+
+                if (ballY < padding) {
+                    ballY = padding;
+                    vy = Math.abs(vy);
+                    vx += (Math.random() - 0.5) * 1.2;
+                    clampSpeed();
+                } else if (ballY > mainRect.height - padding) {
+                    ballY = mainRect.height - padding;
+                    vy = -Math.abs(vy);
+                    vx += (Math.random() - 0.5) * 1.2;
+                    clampSpeed();
+                }
+
+                const container = document.querySelector('.ball-container');
+                container.style.position = 'absolute';
+                container.style.left = ballX + 'px';
+                container.style.top = ballY + 'px';
+                container.style.transform = 'translate(-50%, -50%)';
+
+                frameCount++;
+                if (frameCount % 3 === 0) {
+                    createTrailParticle(ballX, ballY, ballSize);
+                }
+            }
+
+            requestAnimationFrame(updateBallMovement);
+        }
+
+        requestAnimationFrame(updateBallMovement);
+
+        function randomizeBallPosition() {
+            const mainRect = document.querySelector('main').getBoundingClientRect();
+            const padding = MAX_SIZE / 2;
+            
+            let minX = padding;
+            let maxX = mainRect.width - padding;
+            if (maxX <= minX) {
+                minX = mainRect.width / 2;
+                maxX = mainRect.width / 2;
+            }
+            
+            let minY = padding;
+            let maxY = mainRect.height - padding;
+            if (maxY <= minY) {
+                minY = mainRect.height / 2;
+                maxY = mainRect.height / 2;
+            }
+            
+            ballX = minX + Math.random() * (maxX - minX);
+            ballY = minY + Math.random() * (maxY - minY);
+            
+            let baseSpeed = BASE_SPEED();
+            let angle = Math.random() * Math.PI * 2;
+            vx = Math.cos(angle) * baseSpeed;
+            vy = Math.sin(angle) * baseSpeed;
+            clampSpeed();
+        }
+
+        function startGameLoop() {
+            clearInterval(autoGrowInterval);
+            autoGrowInterval = setInterval(() => {
+                if (!gameActive) return;
+                
+                if (ballSize > MIN_SIZE) {
+                    ballSize -= AUTO_DECREASE;
+                    if (ballSize < MIN_SIZE) ballSize = MIN_SIZE;
+                    updateBallVisuals();
+                }
+            }, 150); // Shrink over time
+        }
+
+        startGameLoop();
+
+        document.getElementById('restart-game-btn').addEventListener('click', () => {
+            explosions = 0;
+            updateExplosionIcons();
+            ballSize = MIN_SIZE;
+            gameActive = true;
+            updateBallVisuals();
+            randomizeBallPosition();
+            victoryModal.classList.remove('active');
+            startGameLoop();
+        });
+
+        document.getElementById('whatsapp-share-btn').addEventListener('click', () => {
+            const name = document.getElementById('card-name').textContent;
+            const phone = document.getElementById('card-phone').textContent;
+            const code = document.getElementById('card-code').textContent;
+            const msg = `🏆 *PRÊMIO GANHO!*\n\nOlá! Acabei de ganhar o prêmio no Jogo da Bola Luminosa.\n\n👤 *Nome:* ${name}\n📱 *Telefone:* ${phone}\n🔑 *Código VIP:* ${code}\n\nGostaria de resgatar minha recompensa!`;
+            
+            // Caso deseje enviar para um número fixo, substitua a URL por:
+            // window.open('https://api.whatsapp.com/send?phone=5511999999999&text=' + encodeURIComponent(msg), '_blank');
+            // Como não temos o número fixo configurado, abrimos para o usuário escolher o contato
+            window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`, '_blank');
+        });
+
+        // --- PLAYER LOGIC ---
+        const playerModal = document.getElementById('player-modal');
+        const loginStep = document.getElementById('login-step');
+        const paymentStep = document.getElementById('payment-step');
+        const playerLoginBtn = document.getElementById('player-login-btn');
+        const playerPayBtn = document.getElementById('player-pay-btn');
+        const cancelPayBtn = document.getElementById('cancel-pay-btn');
+        const playerTrialBtn = document.getElementById('player-trial-btn');
+        const trialContainer = document.getElementById('trial-container');
+        const userInfo = document.getElementById('user-info');
+        const currentUsernameSpan = document.getElementById('current-username');
+        const paymentPrice = document.getElementById('payment-price');
+        
+        let currentPlayer = '';
+        let currentPlayerPhone = '';
+        let isBrazil = navigator.language.toLowerCase().includes('pt');
+        
+        // --- ONLINE PLAYERS MOCK ---
+        let baseOnlinePlayers = Math.floor(Math.random() * 35) + 12;
+        const onlineCountEl = document.getElementById('online-count');
+        onlineCountEl.textContent = baseOnlinePlayers;
+        setInterval(() => {
+            const flux = Math.floor(Math.random() * 3) - 1; // -1, 0, 1
+            baseOnlinePlayers += flux;
+            if (baseOnlinePlayers < 1) baseOnlinePlayers = 1;
+            onlineCountEl.textContent = baseOnlinePlayers;
+        }, 8000);
+        
+        function checkSubscription(username) {
+            const exp = localStorage.getItem('sub_expires_' + username);
+            if (exp && parseInt(exp) > Date.now()) {
+                return true;
+            }
+            return false;
+        }
+
+        playerLoginBtn.addEventListener('click', () => {
+            const user = document.getElementById('player-user').value.trim().toUpperCase();
+            const phone = document.getElementById('player-phone').value.trim();
+            if (!user) return alert('Por favor, digite seu nome.');
+            if (!phone) return alert('Por favor, digite seu telefone.');
+            currentPlayer = user;
+            currentPlayerPhone = phone;
+            
+            if (checkSubscription(currentPlayer)) {
+                const savedPhone = localStorage.getItem('player_phone_' + currentPlayer);
+                if (savedPhone) currentPlayerPhone = savedPhone;
+                else localStorage.setItem('player_phone_' + currentPlayer, currentPlayerPhone);
+
+                grantAccess();
+            } else {
+                loginStep.style.display = 'none';
+                paymentStep.style.display = 'block';
+                paymentPrice.textContent = isBrazil ? 'R$ 1,00' : 'US$ 1.00';
+                
+                // Show trial button only if not used for this phone
+                if (localStorage.getItem('trial_used_' + currentPlayerPhone)) {
+                    trialContainer.style.display = 'none';
+                } else {
+                    trialContainer.style.display = 'block';
+                }
+            }
+        });
+        
+        document.getElementById('player-user').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') playerLoginBtn.click();
+        });
+
+        if (playerTrialBtn) {
+            playerTrialBtn.addEventListener('click', () => {
+                if (localStorage.getItem('trial_used_' + currentPlayerPhone)) {
+                    alert('Você já utilizou o período de testes grátis com este número.');
+                    return;
+                }
+                
+                playerTrialBtn.textContent = 'Processando...';
+                playerTrialBtn.disabled = true;
+                
+                setTimeout(() => {
+                    const oneDay = 24 * 60 * 60 * 1000;
+                    localStorage.setItem('sub_expires_' + currentPlayer, Date.now() + oneDay);
+                    localStorage.setItem('player_phone_' + currentPlayer, currentPlayerPhone);
+                    localStorage.setItem('trial_used_' + currentPlayerPhone, 'true');
+                    localStorage.setItem('is_trial_' + currentPlayer, 'true');
+                    
+                    alert('Período de testes de 1 DIA ativado! Bom jogo!');
+                    playerTrialBtn.textContent = 'Testar Grátis por 1 Dia';
+                    playerTrialBtn.disabled = false;
+                    grantAccess();
+                }, 800);
+            });
+        }
+
+        cancelPayBtn.addEventListener('click', () => {
+            loginStep.style.display = 'block';
+            paymentStep.style.display = 'none';
+            currentPlayer = '';
+        });
+
+        playerPayBtn.addEventListener('click', () => {
+            playerPayBtn.textContent = 'Processando...';
+            playerPayBtn.disabled = true;
+            
+            setTimeout(() => {
+                const thirtyDays = 30 * 24 * 60 * 60 * 1000;
+                localStorage.setItem('sub_expires_' + currentPlayer, Date.now() + thirtyDays);
+                localStorage.setItem('player_phone_' + currentPlayer, currentPlayerPhone);
+                localStorage.setItem('is_trial_' + currentPlayer, 'false');
+                
+                alert('Pagamento aprovado! Bom jogo!');
+                playerPayBtn.textContent = 'Pagar Acesso VIP';
+                playerPayBtn.disabled = false;
+                grantAccess();
+            }, 1000);
+        });
+
+        function grantAccess() {
+            playerModal.classList.remove('active');
+            userInfo.style.display = 'block';
+            currentUsernameSpan.textContent = currentPlayer;
+            explosions = 0;
+            updateExplosionIcons();
+            ballSize = MIN_SIZE;
+            updateBallVisuals();
+            randomizeBallPosition();
+            gameActive = true;
+        }
+
+        // --- BANNERS LOGIC ---
+        const bannersGrid = document.getElementById('banners-grid');
+        const defaultBanners = Array.from({length: 10}, (_, i) => ({
+            name: `Patrocinador ${i + 1}`,
+            image: ''
+        }));
+        let bannerData;
+        try {
+            bannerData = JSON.parse(localStorage.getItem('luminous_ball_banners_v2')) || defaultBanners;
+        } catch (e) {
+            bannerData = defaultBanners;
+        }
+
+        function renderBanners() {
+            bannersGrid.innerHTML = '';
+            
+            const doubledBanners = [...bannerData, ...bannerData];
+            
+            doubledBanners.forEach((partner) => {
+                const div = document.createElement('div');
+                div.className = 'banner';
+                
+                let html = '<div class="banner-img-wrapper">';
+                if (partner.image && (partner.image.match(/^https?:\/\//i) || partner.image.startsWith('data:image/'))) {
+                    html += `<img src="${partner.image}" alt="${partner.name}">`;
+                } else {
+                    // Placeholder when no image
+                    html += `<div style="color: #555; font-size: 2rem;">🖼️</div>`;
+                }
+                html += `</div><div class="banner-name">${partner.name || 'Sem Nome'}</div>`;
+                
+                div.innerHTML = html;
+                bannersGrid.appendChild(div);
+            });
+        }
+        renderBanners();
+
+        // --- ADMIN PANEL LOGIC ---
+        const loginModal = document.getElementById('login-modal');
+        const adminDashboard = document.getElementById('admin-dashboard');
+        
+        document.getElementById('open-login-btn').addEventListener('click', () => { // Open Modal
+            loginModal.classList.add('active');
+        });
+        
+        document.getElementById('close-login-btn').addEventListener('click', () => { // Close Modal
+            loginModal.classList.remove('active');
+            document.getElementById('login-error').style.display = 'none';
+        });
+
+        document.getElementById('login-btn').addEventListener('click', () => {
+            const user = document.getElementById('admin-user').value;
+            const pass = document.getElementById('admin-pass').value;
+            
+            // Simple hardcoded auth for demonstration
+            if (user === 'admin' && pass === 'admin') {
+                loginModal.classList.remove('active');
+                openAdminDashboard();
+                document.getElementById('login-error').style.display = 'none';
+                document.getElementById('admin-user').value = '';
+                document.getElementById('admin-pass').value = '';
+            } else {
+                document.getElementById('login-error').style.display = 'block';
+            }
+        });
+
+        document.getElementById('logout-btn').addEventListener('click', () => {
+            adminDashboard.classList.remove('active');
+        });
+
+        function populateAdminBanners() {
+            const container = document.getElementById('banner-settings-container');
+            container.innerHTML = '';
+            for (let i = 0; i < 10; i++) {
+                const partner = bannerData[i] || {name: '', image: ''};
+                const group = document.createElement('div');
+                group.className = 'banner-input-group';
+                group.style.alignItems = 'flex-start';
+                group.innerHTML = `
+                    <label style="width: 20px; font-weight: bold; margin-top: 8px;">${i + 1}</label>
+                    <div style="flex: 1; display: flex; flex-direction: column; gap: 5px;">
+                        <input type="text" id="admin-banner-name-${i}" value="${partner.name || ''}" placeholder="Nome (Ex: Empresa X)">
+                        <div style="display: flex; gap: 5px;">
+                            <input type="text" id="admin-banner-img-${i}" value="${partner.image || ''}" placeholder="URL da Imagem ou Código Base" style="flex: 1;">
+                            <input type="file" id="admin-banner-file-${i}" accept="image/*" style="display: none;">
+                            <button type="button" onclick="document.getElementById('admin-banner-file-${i}').click()" style="padding: 0 10px; cursor: pointer; background: #333; color: white; border: 1px solid #555; border-radius: 4px;">📂 PC</button>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(group);
+
+                // File input handler to resize image and convert to Base64 (to fit LocalStorage size limits)
+                document.getElementById(`admin-banner-file-${i}`).addEventListener('change', function(e) {
+                    const file = e.target.files[0];
+                    if (!file) return;
+                    
+                    const reader = new FileReader();
+                    reader.onload = function(event) {
+                        const img = new Image();
+                        img.onload = function() {
+                            const canvas = document.createElement('canvas');
+                            const MAX_WIDTH = 300;
+                            const MAX_HEIGHT = 200;
+                            let width = img.width;
+                            let height = img.height;
+
+                            // Scale to fit
+                            if (width > height) {
+                                if (width > MAX_WIDTH) {
+                                    height *= MAX_WIDTH / width;
+                                    width = MAX_WIDTH;
+                                }
+                            } else {
+                                if (height > MAX_HEIGHT) {
+                                    width *= MAX_HEIGHT / height;
+                                    height = MAX_HEIGHT;
+                                }
+                            }
+                            canvas.width = width;
+                            canvas.height = height;
+                            
+                            const ctx = canvas.getContext('2d');
+                            ctx.drawImage(img, 0, 0, width, height);
+                            // Compress with WebP format for smaller file sizes
+                            const dataUrl = canvas.toDataURL('image/webp', 0.85);
+                            document.getElementById(`admin-banner-img-${i}`).value = dataUrl;
+                        };
+                        img.src = event.target.result;
+                    };
+                    reader.readAsDataURL(file);
+                });
+            }
+        }
+
+        function openAdminDashboard() {
+            adminDashboard.classList.add('active');
+            document.getElementById('admin-stat-explosions').textContent = localStorage.getItem('luminous_global_explosions') || '0';
+            populateAdminBanners();
+            populateWinnersHistory();
+        }
+
+        function populateWinnersHistory() {
+            const container = document.getElementById('winners-history-container');
+            if(!container) return;
+            container.innerHTML = '';
+            
+            let winners = [];
+            try { winners = JSON.parse(localStorage.getItem('luminous_winners_v2')) || []; } catch(e) {}
+            
+            if (winners.length === 0) {
+                container.innerHTML = '<p style="color: #888; text-align: center;">Nenhum ganhador registrado no momento.</p>';
+                return;
+            }
+            
+            // Loop backwards for newest first
+            for (let i = winners.length - 1; i >= 0; i--) {
+                const w = winners[i];
+                const dateObj = new Date(w.timestamp);
+                const dateStr = dateObj.toLocaleDateString() + ' às ' + dateObj.toLocaleTimeString();
+                
+                const hoursPassed = Math.floor((Date.now() - w.timestamp) / (1000 * 60 * 60));
+                const isExpired = hoursPassed >= 72;
+                
+                const div = document.createElement('div');
+                div.style.padding = '10px 0';
+                div.style.borderBottom = '1px solid #333';
+                div.style.display = 'flex';
+                div.style.justifyContent = 'space-between';
+                
+                div.innerHTML = `
+                    <div>
+                        <strong style="color: #00ffcc; font-size: 1.1rem;">${w.name}</strong> <span style="color: #888;">- ${w.phone}</span><br>
+                        Código VIP: <span style="font-family: monospace; color: gold; font-size: 1.1rem; letter-spacing: 2px;">${w.code}</span>
+                    </div>
+                    <div style="text-align: right; font-size: 0.85rem; color: #aaa;">
+                        ${dateStr}<br>
+                        <span style="color: ${isExpired ? '#ff4444' : '#00ff00'}; font-weight: bold;">
+                            ${isExpired ? 'Vencido ('+hoursPassed+'h)' : hoursPassed + 'h passadas'}
+                        </span>
+                    </div>
+                `;
+                container.appendChild(div);
+            }
+        }
+
+        const clearExpiredBtn = document.getElementById('clear-expired-btn');
+        if (clearExpiredBtn) {
+            clearExpiredBtn.addEventListener('click', () => {
+                let winners = [];
+                try { winners = JSON.parse(localStorage.getItem('luminous_winners_v2')) || []; } catch(e) {}
+                
+                const now = Date.now();
+                const initialCount = winners.length;
+                
+                // Maintain only winners under 72 hours
+                winners = winners.filter(w => (now - w.timestamp) < (72 * 60 * 60 * 1000));
+                const removedCount = initialCount - winners.length;
+                
+                if (removedCount > 0) {
+                    localStorage.setItem('luminous_winners_v2', JSON.stringify(winners));
+                    populateWinnersHistory();
+                    alert(removedCount + ' registro(s) com mais de 72 horas removido(s) com sucesso!');
+                } else {
+                    alert('Nenhum ganhador ultrapassou o limite de 72 horas.');
+                }
+            });
+        }
+
+        document.getElementById('save-banners-btn').addEventListener('click', () => {
+            for (let i = 0; i < 10; i++) {
+                const nameVal = document.getElementById(`admin-banner-name-${i}`).value.trim();
+                const imgVal = document.getElementById(`admin-banner-img-${i}`).value.trim();
+                
+                bannerData[i] = {
+                    name: nameVal !== '' ? nameVal : `Patrocinador ${i + 1}`,
+                    image: imgVal
+                };
+            }
+            localStorage.setItem('luminous_ball_banners_v2', JSON.stringify(bannerData));
+            renderBanners();
+            alert('Banners dos Patrocinadores Atualizados!');
+        });
+
+        document.getElementById('reset-stats-btn').addEventListener('click', () => {
+            if(confirm('Tem certeza que deseja zerar TODAS as estatísticas e as vitórias do jogador atual?')) {
+                // Reset global
+                localStorage.setItem('luminous_global_explosions', '0');
+                document.getElementById('admin-stat-explosions').textContent = '0';
+                
+                // Reset local game state
+                explosions = 0;
+                explosionCountEl.textContent = '0';
+                ballSize = MIN_SIZE;
+                gameActive = true;
+                updateBallVisuals();
+                victoryModal.classList.remove('active');
+                startGameLoop();
+                
+                alert('O jogo e placar global foram reiniciados!');
+            }
+        });
+
+    </script>
+</body>
+</html>
